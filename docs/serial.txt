@@ -1,0 +1,259 @@
+
+#
+Use wiring pi library for raspi.
+However you could use only serial and modules necessary as gpio for buttons, spi for display etc ?
+
+However you can see also:
+https://www.tldp.org/HOWTO/text/Serial-Programming-HOWTO
+
+
+#
+int   serialDataAvail (int fd) ;
+Returns the number of characters available for reading, or -1 for any error condition,
+in which case errno will be set appropriately.
+
+int serialGetchar (int fd) ;
+Returns the next character available on the serial device. This call will block for
+up to 10 seconds if no data is available (when it will return -1)
+
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <wiringPi.h>
+#include <wiringSerial.h>
+
+
+int main ()
+{
+  int fd ;
+  int count ;
+  unsigned int nextTime ;
+
+
+  if ((fd = serialOpen ("/dev/ttyAMA0", 115200)) < 0)
+  {
+    fprintf (stderr, "Unable to open serial device: %s\n", strerror (errno)) ;
+    return 1 ;
+  }
+
+  if (wiringPiSetup () == -1)
+  {
+    fprintf (stdout, "Unable to start wiringPi: %s\n", strerror (errno)) ;
+    return 1 ;
+  }
+
+  nextTime = millis () + 300 ;
+  for (count = 0 ; count < 256 ; )
+  {
+    if (millis () > nextTime)
+    {
+      printf ("\nOut: %3d: ", count) ;
+      fflush (stdout) ;
+      serialPutchar (fd, count) ;
+      nextTime += 300 ;
+      ++count ;
+    }
+
+    delay (3) ;
+    while (serialDataAvail (fd))
+    {
+      printf (" -> %3d", serialGetchar (fd)) ;
+      fflush (stdout) ;
+    }
+  }
+
+  printf ("\n") ;
+
+  return 0 ;
+}
+
+
+
+#
+Example of use standard serial read:
+
+void serial_loop(){
+    long bytes_read;
+    int bytes_available;
+    unsigned char msg[10];
+    while(1){
+        do{
+            usleep(1000);
+            ioctl(serial, FIONREAD, &bytes_available);
+
+        }while(bytes_available < 10); //wait for the sequence to complete
+
+        bytes_read = read(serial, msg, 10);
+
+        //do some parsing here
+    }
+}
+
+void serial_loop(){
+    int datalength = 10;
+    long bytes_read = 0;
+    int bytes_in_msg = 0;
+    unsigned char buf[datalength];
+    unsigned char msg[datalength];
+    do{
+        bytes_read = read(serial, buf, datalength-bytes_in_msg);
+        usleep(1000);
+        if (bytes_read>0){
+            memcpy(&msg[bytes_in_msg], &buf, bytes_read);
+        }
+        bytes_in_msg += bytes_read;
+    }while(bytes_in_msg < datalength);
+
+    //do some parsing here
+    }
+}
+
+
+#
+From
+https://www.tldp.org/HOWTO/text/Serial-Programming-HOWTO
+
+2.3. Input Concepts for Serial Devices
+
+Here three different input concepts will be presented. The appropriate
+concept has to be chosen for the intended application. Whenever possible, do
+not loop reading single characters to get a complete string. When I did this,
+I lost characters, whereas a read for the whole string did not show any
+errors.
+-----------------------------------------------------------------------------
+
+2.3.1. Canonical Input Processing
+
+This is the normal processing mode for terminals, but can also be useful for
+communicating with other dl input is processed in units of lines, which means
+that a read will only return a full line of input. A line is by default
+terminated by a NL (ASCII LF), an end of file, or an end of line character. A
+CR (the DOS/Windows default end-of-line) will not terminate a line with the
+default settings.
+
+Canonical input processing can also handle the erase, delete word, and
+reprint characters, translate CR to NL, etc..
+-----------------------------------------------------------------------------
+
+2.3.2. Non-Canonical Input Processing
+
+Non-Canonical Input Processing will handle a fixed amount of characters per
+read, and allows for a character timer. This mode should be used if your
+application will always read a fixed number of characters, or if the
+connected device sends bursts of characters.
+-----------------------------------------------------------------------------
+
+2.3.3. Asynchronous Input
+
+The two modes described above can be used in synchronous and asynchronous
+mode. Synchronous is the default, where a read statement will block, until
+the read is satisfied. In asynchronous mode the read statement will return
+immediatly and send a signal to the calling program upon completion. This
+signal can be received by a signal handler.
+-----------------------------------------------------------------------------
+
+
+
+3.3. Asynchronous Input
+
+ 
++-----------------------------------------------------------------------------------+
+|      #include <termios.h>                                                         |
+|      #include <stdio.h>                                                           |
+|      #include <unistd.h>                                                          |
+|      #include <fcntl.h>                                                           |
+|      #include <sys/signal.h>                                                      |
+|      #include <sys/types.h>                                                       |
+|                                                                                   |
+|      #define BAUDRATE B38400                                                      |
+|      #define MODEMDEVICE "/dev/ttyS1"                                             |
+|      #define _POSIX_SOURCE 1 /* POSIX compliant source */                         |
+|      #define FALSE 0                                                              |
+|      #define TRUE 1                                                               |
+|                                                                                   |
+|      volatile int STOP=FALSE;                                                     |
+|                                                                                   |
+|      void signal_handler_IO (int status);   /* definition of signal handler */    |
+|      int wait_flag=TRUE;                    /* TRUE while no signal received */   |
+|                                                                                   |
+|      main()                                                                       |
+|      {                                                                            |
+|        int fd,c, res;                                                             |
+|        struct termios oldtio,newtio;                                              |
+|        struct sigaction saio;           /* definition of signal action */         |
+|        char buf[255];                                                             |
+|                                                                                   |
+|        /* open the device to be non-blocking (read will return immediatly) */     |
+|        fd = open(MODEMDEVICE, O_RDWR | O_NOCTTY | O_NONBLOCK);                    |
+|        if (fd <0) {perror(MODEMDEVICE); exit(-1); }                               |
+|                                                                                   |
+|        /* install the signal handler before making the device asynchronous */     |
+|        saio.sa_handler = signal_handler_IO;                                       |
+|        saio.sa_mask = 0;                                                          |
+|        saio.sa_flags = 0;                                                         |
+|        saio.sa_restorer = NULL;                                                   |
+|        sigaction(SIGIO,&saio,NULL);                                               |
+|                                                                                   |
+|        /* allow the process to receive SIGIO */                                   |
+|        fcntl(fd, F_SETOWN, getpid());                                             |
+|        /* Make the file descriptor asynchronous (the manual page says only        |
+|           O_APPEND and O_NONBLOCK, will work with F_SETFL...) */                  |
+|        fcntl(fd, F_SETFL, FASYNC);                                                |
+|                                                                                   |
+|        tcgetattr(fd,&oldtio); /* save current port settings */                    |
+|        /* set new port settings for canonical input processing */                 |
+|        newtio.c_cflag = BAUDRATE | CRTSCTS | CS8 | CLOCAL | CREAD;                |
+|        newtio.c_iflag = IGNPAR | ICRNL;                                           |
+|        newtio.c_oflag = 0;                                                        |
+|        newtio.c_lflag = ICANON;                                                   |
+|        newtio.c_cc[VMIN]=1;                                                       |
+|        newtio.c_cc[VTIME]=0;                                                      |
+|        tcflush(fd, TCIFLUSH);                                                     |
+|        tcsetattr(fd,TCSANOW,&newtio);                                             |
+|                                                                                   |
+|        /* loop while waiting for input. normally we would do something            |
+|           useful here */                                                          |
+|        while (STOP==FALSE) {                                                      |
+|          printf(".\n");usleep(100000);                                            |
+|          /* after receiving SIGIO, wait_flag = FALSE, input is available          |
+|             and can be read */                                                    |
+|          if (wait_flag==FALSE) {                                                  |
+|            res = read(fd,buf,255);                                                |
+|            buf[res]=0;                                                            |
+|            printf(":%s:%d\n", buf, res);                                          |
+|            if (res==1) STOP=TRUE; /* stop loop if only a CR was input */          |
+|            wait_flag = TRUE;      /* wait for new input */                        |
+|          }                                                                        |
+|        }                                                                          |
+|        /* restore old port settings */                                            |
+|        tcsetattr(fd,TCSANOW,&oldtio);                                             |
+|      }                                                                            |
+|                                                                                   |
+|      /*************************************************************************** |
+|      * signal handler. sets wait_flag to FALSE, to indicate above loop that     * |
+|      * characters have been received.                                           * |
+|      ***************************************************************************/ |
+|                                                                                   |
+|      void signal_handler_IO (int status)                                          |
+|      {                                                                            |
+|        printf("received SIGIO signal.\n");                                        |
+|        wait_flag = FALSE;                                                         |
+|      }                                                                            |
+|                                                                                   |
++-----------------------------------------------------------------------------------+
+-----------------------------------------------------------------------------
+
+#
+Asynchro data receiving
+
+https://stackoverflow.com/questions/15119412/setting-serial-port-interruption-in-linux
+
+https://stackoverflow.com/questions/15119412/setting-serial-port-interruption-in-linux
+
+!!
+You can't safely use malloc() or pthread_mutex_lock() in a signal handler. 
+You can only use async-signal safe calls in a signal handler. 
+A list of Linux async-signal safe calls can be found here:
+
+signal(7) - Linux manual page
+
