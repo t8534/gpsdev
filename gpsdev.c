@@ -1,75 +1,134 @@
+/*
+ * main.c
+ * 
+ * Copyright 2017  <pi@raspberrypi>
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+ * MA 02110-1301, USA.
+ * 
+ * 
+ */
 
-#include <sys/types.h>
-#include <sys/socket.h>
+// http://www.raspberry-projects.com/pi/programming-in-c/compilers-and-ides/geany/creating-a-project
+
+
+// TODO:
+//
+// Run communication with gps hw module.
+// Finally it should be gpshw.c file with blocking interface function for read raw bytes.
+// The gps message will be completed by gpslib.
+//
+
+#if 0
 #include <stdio.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
+
+int main(int argc, char **argv)
+{
+	printf("Start \n");
+	//flush();
+	return 0;
+}
+#endif
+
+
+// serialRead test
+#include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <sys/shm.h>
-#include <thread>
-#include <iostream>
+#include <errno.h>
 
+#include <wiringSerial.h>
 
-#define PORT 7000
-#define QUEUE 20
+int main ()
+{
+  int fd ;
+  
+  printf("Test: readSerial: \n");
+  
 
-int conn;
+  if ((fd = serialOpen ("/dev/ttyAMA0", 38400)) < 0)
+  {
+    fprintf (stderr, "Unable to open serial device: %s\n", strerror (errno)) ;
+    return 1 ;
+  }
 
-void thread_task() {
+// Loop, getting and printing characters
+
+  for (;;)
+  {
+    //putchar (serialGetchar (fd)) ;
+    //printf (" -> %3d", serialGetchar (fd)) ;
+    printf (" -> %d \n", serialGetchar (fd)) ;
+    fflush (stdout) ;
+  }
 }
 
-int main() {
-    //printf("%d\n",AF_INET);
-    //printf("%d\n",SOCK_STREAM);
-    int ss = socket(AF_INET, SOCK_STREAM, 0);
-    //printf("%d\n",ss);
-    struct sockaddr_in server_sockaddr;
-    server_sockaddr.sin_family = AF_INET;
-    server_sockaddr.sin_port = htons(PORT);
-    //printf("%d\n",INADDR_ANY);
-    server_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    if(bind(ss, (struct sockaddr* ) &server_sockaddr, sizeof(server_sockaddr))==-1) {
-        perror("bind");
-        exit(1);
-    }
-    if(listen(ss, QUEUE) == -1) {
-        perror("listen");
-        exit(1);
+
+////////////////////////////////////////////////
+// serialTest
+
+#if 0
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+
+#include <wiringPi.h>
+#include <wiringSerial.h>
+
+int main ()
+{
+  int fd ;
+  int count ;
+  unsigned int nextTime ;
+
+  if ((fd = serialOpen ("/dev/ttyAMA0", 115200)) < 0)
+  {
+    fprintf (stderr, "Unable to open serial device: %s\n", strerror (errno)) ;
+    return 1 ;
+  }
+
+  if (wiringPiSetup () == -1)
+  {
+    fprintf (stdout, "Unable to start wiringPi: %s\n", strerror (errno)) ;
+    return 1 ;
+  }
+
+  nextTime = millis () + 300 ;
+
+  for (count = 0 ; count < 256 ; )
+  {
+    if (millis () > nextTime)
+    {
+      printf ("\nOut: %3d: ", count) ;
+      fflush (stdout) ;
+      serialPutchar (fd, count) ;
+      nextTime += 300 ;
+      ++count ;
     }
 
-    struct sockaddr_in client_addr;
-    socklen_t length = sizeof(client_addr);
-    /// Successful return of non-negative descriptor, error Return-1
-    conn = accept(ss, (struct sockaddr*)&client_addr, &length);
-    if( conn < 0 ) {
-        perror("connect");
-        exit(1);
+    delay (3) ;
+
+    while (serialDataAvail (fd))
+    {
+      printf (" -> %3d", serialGetchar (fd)) ;
+      fflush (stdout) ;
     }
+  }
 
-    char buffer[1024];
-    //Create another thread
-    //std::thread t(thread_task);
-    //t.join();
-    //char buf[1024];
-    //Main thread
-    while(1) {
-
-        // memset(buf, 0 ,sizeof(buf));
-        // if(fgets(buf, sizeof(buf),stdin) != NULL) {
-        //     send(conn, buf, sizeof(buf), 0);    
-        // }
-
-        memset(buffer, 0 ,sizeof(buffer));
-        int len = recv(conn, buffer, sizeof(buffer), 0);
-        if(strcmp(buffer, "exit\n") == 0) break;
-        printf("%s", buffer);
-        //You have to return data to make a complete request.
-        send(conn, buffer, len , 0);
-    }
-    close(conn);
-    close(ss);
-    return 0;
+  printf ("\n") ;
+  return 0 ;
 }
+
+#endif
+
