@@ -1,3 +1,23 @@
+// gpsdev.c
+//
+// TODO:
+//
+// 1.
+// Remove tcpip end run pure pthread code from sfml_serv.
+// Check is wait/signal working.
+// Check is mutexes on buffer working.
+// All in 2 variants:
+// - 2 separate threads.
+// - single thread and main process 
+//
+// 2.
+// Run tcpip server on 2 separate threads, as in sfml.
+//
+// 3.
+// If sockets are not working on thread try single thread for gpsev and socket server in main
+// process.
+// 
+
 
 #include <sys/types.h>
 #include <sys/socket.h>
