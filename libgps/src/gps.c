@@ -7,6 +7,8 @@
 #include "nmea.h"
 #include "serial.h"
 
+//todo:
+// arek: incorrect init should be supported
 extern void gps_init(void) {
     serial_init();
     serial_config();
