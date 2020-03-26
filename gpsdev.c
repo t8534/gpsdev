@@ -20,6 +20,35 @@
 
 
 #include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include "gpsdev.h"
+#include "server.h"
+#include "gpsmod.h"
+
+pthread_mutex_t condition_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t  condition_cond  = PTHREAD_COND_INITIALIZER;
+
+
+
+int main(int argc, char* argv[]) {
+	
+	
+		// Test if this is only signle thread for gpsdev
+	pthread_t thread2;
+	pthread_create(&thread2, NULL, gpsmod, NULL);  //todo: check should we do something more for this thread here, like a join or so.
+	Server();
+	//pthread_create(&thread1, NULL, Server, NULL);
+	//pthread_create(&thread2, NULL, Gpsdev, NULL);
+
+	//pthread_join( thread2, NULL);  // todo: what about this join
+
+	return 0;	// Change to exit success
+}
+
+# if0
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <stdio.h>
 #include <netinet/in.h>
@@ -93,3 +122,5 @@ int main() {
     close(ss);
     return 0;
 }
+
+#endif

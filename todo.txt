@@ -1,5 +1,7 @@
 TODO:
 
+[master]
+
 1.
 Run simply server
 
@@ -20,3 +22,6 @@ So the period is controlled by device.
 Make it daemon.
 What about error codes is it supported ?
  
+ 
+[pthread branch]
+
