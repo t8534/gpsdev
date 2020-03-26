@@ -1,8 +1,14 @@
 [200305]
 
+1. OP
 Why I cannot compile with makefile, because get msg the option -std=c++11 should be enable.
 And this is not working.
 But without any problems I can compile by:
 g++ gpsdev.c -o gpsev
+
+This is because makefile is for C not C++.
+In general move project to be C, this is too simply to use c++
+
+
 
 

@@ -1,9 +1,10 @@
 # Source, Executable, Includes, Library Defines
-INCL   = loop.h defs.h
-SRC    = moo.c foo.c bar.c baz.c dood.c shazbot.c mop.c woot.c
+#INCL   = loop.h defs.h
+INCL   = 
+SRC    = gpsdev.c 
 OBJ    = $(SRC:.c=.o)
-LIBS   = -lgen
-EXE    = moolicious
+LIBS   = 
+EXE    = gpsdev
 
 # Compiler, Linker Defines
 CC      = /usr/bin/gcc
