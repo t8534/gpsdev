@@ -1,6 +1,11 @@
 Notes.
 ----------------------------
 
+#1
+
+Makefile:
+
+
 See:
 Compilation and makefile on Geany:
 http://www.raspberry-projects.com/pi/programming-in-c/compilers-and-ides/geany/creating-a-project
@@ -61,3 +66,116 @@ clean:
 	rm -f *.o *~ core *~ 
 	
 	
+	
+	
+#2
+Raspi Serial
+
+https://www.raspberrypi.org/forums/viewtopic.php?t=211733
+
+Re: very simple serial port example?
+Quote
+Mon Apr 23, 2018 12:32 pm
+
+hi,
+as stated before, wiringPi is supposed to be the simplest way.
+To enable UART:
+1. Add the line
+enable_uart=1
+to the '/boot/config.txt' file, this line will set up the Serial Port UART and the necessary clocks on all Pi models.
+2. Remove the phrase "console=serial0,115200" from the '/boot/cmdline.txt' file.
+This action prevents Linux from starting a Console on the Serial Port.
+
+wiringPi Homepage, explaining the API functions: http://wiringpi.com/reference/serial-library/
+(unfortunately not showing some simple examples)
+
+inofficial (!!) sourcecode on github, but eventually feat some examples:
+https://github.com/WiringPi/WiringPi/tree/master/examples
+
+
+Re: very simple serial port example?
+Quote
+Tue Apr 24, 2018 12:16 am
+
+Thank you for the WiringPi suggestion! This is the simple C example I was looking for: 
+https://github.com/WiringPi/WiringPi/blob/master/examples/serialRead.c
+
+https://github.com/WiringPi/WiringPi/blob/master/examples/serialTest.c
+
+
+#3
+
+Without WirinPi
+
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <fcntl.h>
+ #include <termios.h>
+ #include <stdio.h>
+ #include <string.h>
+ #include <stdlib.h>
+ #include <unistd.h>
+
+ #define BAUDRATE B9600
+ #define MODEMDEVICE "/dev/arduino"
+ #define _POSIX_SOURCE 1 /* POSIX compliant source */
+
+ #define FALSE 0
+ #define TRUE 1
+
+ volatile int STOP=FALSE;
+
+ void  main() {
+   int ardin, timout, c, res;
+   struct termios oldtio,newtio;
+   char buf[255];
+   char *filename = "/home/pi/ardtime.html";
+
+   char ht_head[300] = "<html><HEAD><script type=\"text/javascript\">\r\nfunction reFresh() {\r\nlocation.reload(true)\r\n}window.setInterval(\"reFresh()\",1000);\r\n</script></HEAD><body><h1>";
+   char ht_foot[100] = "</h1>Autoreload - once a second</body></html>";
+
+   ardin = open(MODEMDEVICE, O_RDWR | O_NOCTTY );
+   if (ardin <0) {
+     perror(MODEMDEVICE);
+     exit(-1);
+   }
+
+   if ((timout = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1) {
+     perror("Cannot open output file\n");
+     exit(1);
+   }
+   close(timout);
+
+   tcgetattr(ardin,&oldtio); /* save current serial port settings */
+   bzero(&newtio, sizeof(newtio)); /* clear struct for new port settings */
+
+   newtio.c_cflag = BAUDRATE | CRTSCTS | CS8 | CLOCAL | CREAD;
+   newtio.c_iflag = IGNPAR | ICRNL;
+   newtio.c_oflag = 0;
+   newtio.c_lflag = ICANON;
+   newtio.c_cc[VMIN]     = 1;     /* blocking read until 1 character arrives */
+
+   tcflush(ardin, TCIFLUSH);
+   tcsetattr(ardin,TCSANOW,&newtio);
+
+   while (STOP==FALSE) {
+     res = read(ardin,buf,255);
+     buf[res]=0;             /* set end of string, so we can printf */
+     if (res > 1) {
+       // printf("%s", buf);
+       timout = open(filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+       write(timout,ht_head,strlen(ht_head));
+       write(timout,buf,res);
+       write(timout,ht_foot,strlen(ht_foot));
+       close(timout);
+     }
+
+
+     if (buf[0]=='z') STOP=TRUE;
+   }
+
+   tcsetattr(ardin,TCSANOW,&oldtio); /* restore the old port settings */
+ }
+ 
+
+
